@@ -167,6 +167,10 @@ type Tracer struct {
 	// different goroutine.
 	OnGoroutineSwitchPrintStackHistory bool
 
+	// TimestampAsTimeSince causes the displayed timestamp to be
+	// presented as a duration since format if non-zero.
+	TimestampAsTimeSince time.Time
+
 	goroutines                  map[int]*GoroutineInfo
 	mutex                       sync.Mutex
 	goroutineID                 int
@@ -295,7 +299,11 @@ func (tr *Tracer) printFrameIndicesLowerThan(goroutine *GoroutineInfo, idx, mark
 
 		var timestamp string
 		if !tr.OmitTime {
-			timestamp = frame.TimeRecorded.Format("2006-01-02 15:04:05.00000000 ")
+			if tr.TimestampAsTimeSince.IsZero() {
+				timestamp = frame.TimeRecorded.Format("2006-01-02 15:04:05.00000000 ")
+			} else {
+				timestamp = frame.TimeRecorded.Sub(tr.TimestampAsTimeSince).String() + " "
+			}
 		}
 
 		var message string
