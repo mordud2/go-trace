@@ -124,17 +124,24 @@ type Tracer struct {
 	// Out receives the output of the Trace() calls.
 	Out Logger
 
-	// Capacity holds the maximum stack size we can accomodate.
+	// Capacity holds the maximum stack size we can accommodate.
 	Capacity int
 
-	// SourceLength holds the maxium displayed length,
+	// SourceLength holds the maximum displayed length,
 	// right-justified, of the string specifying the source code
 	// file name and line number. The
 	SourceLength int
 
+	// SourceRoot is the name of the root path of the codebase.
+	// Any parent directories above a matching path are omitted.
+	SourceRoot string
+
 	// LockGoroutine causes Trace() to only record and emit output
 	// for the current (ie last invoking) goroutine.
 	LockGoroutine bool
+
+	// OmitFrameDetails causes Tracer to not output PC/goroutineID.
+	OmitFrameDetails bool
 
 	// OmitTime causes Tracer to not output date/time info. This
 	// might be useful to shorten output lines if the Logger
@@ -272,7 +279,15 @@ func (tr *Tracer) printFrameIndicesLowerThan(goroutine *GoroutineInfo, idx, mark
 		var location string
 		frame := goroutine.Frames[idx]
 		if tr.SourceLength > 0 {
-			location = fmt.Sprintf("%200s:%-4d  p%d g%-3d%%c", frame.File, frame.Line, frame.PC, goroutine.ID)
+			fileName := frame.File
+			if i := strings.Index(frame.File, tr.SourceRoot); i > 0 {
+				fileName = frame.File[i:]
+			}
+			if !tr.OmitFrameDetails {
+				location = fmt.Sprintf("%200s:%-4d  p%d g%-3d%%c", fileName, frame.Line, frame.PC, goroutine.ID)
+			} else {
+				location = fmt.Sprintf("%200s:%-4d%%c", fileName, frame.Line)
+			}
 			if len(location) > tr.SourceLength {
 				location = location[len(location)-tr.SourceLength:]
 			}
@@ -294,7 +309,7 @@ func (tr *Tracer) printFrameIndicesLowerThan(goroutine *GoroutineInfo, idx, mark
 		if idx < markFrom {
 			callout = tr.calloutNew
 		}
-		tr.Out.Printf(line, callout)
+		tr.Out.Printf(line+"\n", callout)
 	}
 }
 
